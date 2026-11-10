@@ -34,3 +34,7 @@ build/
 
 .env
 !.env.example
+
+src/main/frontend/generated/
+src/main/bundles/
+node_modules/
