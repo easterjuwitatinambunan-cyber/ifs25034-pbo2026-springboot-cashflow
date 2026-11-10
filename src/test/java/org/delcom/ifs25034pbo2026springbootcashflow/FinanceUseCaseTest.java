@@ -90,4 +90,17 @@ class FinanceUseCaseTest {
         Transaction t = useCase.addIncome("Gaji", "1000000");
         assertEquals("[1] Gaji | Rp 1,000,000.00 | [Pemasukan]", presenter.format(t));
     }
+
+    @Test
+    void searchWithNullKeywordMatchesAll() throws Exception {
+        useCase.addIncome("A", "1");
+        assertEquals(1, useCase.searchTransactions(null).size());
+    }
+
+    @Test
+    void amountNullAndNonNumericRejected() {
+        assertThrows(ValidationException.class, () -> useCase.addIncome("A", null));
+        assertThrows(ValidationException.class, () -> useCase.addExpense("A", null));
+        assertThrows(ValidationException.class, () -> useCase.addExpense(" ", "5"));
+    }
 }

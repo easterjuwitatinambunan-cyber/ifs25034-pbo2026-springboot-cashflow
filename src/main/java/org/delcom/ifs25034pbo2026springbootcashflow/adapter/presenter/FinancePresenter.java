@@ -20,6 +20,16 @@ public class FinancePresenter {
         return "Rp " + df.format(amount);
     }
 
+    /** Jumlah transaksi sebagai teks uang (dipakai kolom tabel). */
+    public String formatAmount(Transaction t) {
+        return formatMoney(t.getAmount());
+    }
+
+    /** Label jenis transaksi (dipakai kolom tabel). */
+    public String formatType(Transaction t) {
+        return t.getType().label();
+    }
+
     /** Format satu baris transaksi. */
     public String format(Transaction t) {
         return String.format("[%d] %s | %s | [%s]",

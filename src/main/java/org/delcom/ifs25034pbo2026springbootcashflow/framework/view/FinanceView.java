@@ -39,14 +39,22 @@ public class FinanceView extends VerticalLayout {
     private final FinanceUseCase useCase;
     private final FinancePresenter presenter;
 
-    private final Grid<Transaction> grid = new Grid<>(Transaction.class, false);
-    private final TextField searchField = new TextField();
-    private final Paragraph statusLabel = new Paragraph();
-    private final Span emptyState = new Span(EMPTY_ALL);
-    private final Span totalCount = new Span("0");
-    private final Span incomeTotal = new Span("Rp 0.00");
-    private final Span expenseTotal = new Span("Rp 0.00");
-    private final Span balanceLabel = new Span("Rp 0.00");
+    // Komponen berikut package-private agar dapat diperiksa oleh unit test.
+    final Grid<Transaction> grid = new Grid<>(Transaction.class, false);
+    final TextField searchField = new TextField();
+    final Paragraph statusLabel = new Paragraph();
+    final Span emptyState = new Span(EMPTY_ALL);
+    final Span totalCount = new Span("0");
+    final Span incomeTotal = new Span("Rp 0.00");
+    final Span expenseTotal = new Span("Rp 0.00");
+    final Span balanceLabel = new Span("Rp 0.00");
+
+    // Referensi dialog yang terakhir dibuka (dipakai oleh unit test).
+    Dialog currentDialog;
+    TextField descriptionInput;
+    TextField amountInput;
+    Button confirmButton;
+    Button cancelButton;
 
     public FinanceView(FinanceUseCase useCase, FinancePresenter presenter) {
         this.useCase = useCase;
@@ -129,10 +137,10 @@ public class FinanceView extends VerticalLayout {
         grid.addColumn(Transaction::getDescription).setHeader("Keterangan").setKey("description")
                 .setFlexGrow(1).setSortable(true)
                 .setComparator(Comparator.comparing(Transaction::getDescription, String.CASE_INSENSITIVE_ORDER));
-        grid.addColumn(t -> presenter.formatMoney(t.getAmount())).setHeader("Jumlah").setKey("amount")
+        grid.addColumn(presenter::formatAmount).setHeader("Jumlah").setKey("amount")
                 .setAutoWidth(true).setSortable(true)
                 .setComparator(Comparator.comparing(Transaction::getAmount));
-        grid.addColumn(t -> t.getType().label()).setHeader("Tipe").setKey("type")
+        grid.addColumn(presenter::formatType).setHeader("Tipe").setKey("type")
                 .setAutoWidth(true).setSortable(true)
                 .setComparator(Comparator.comparing(Transaction::getType));
         grid.addColumn(presenter::formatCreatedAt).setHeader("Waktu").setKey("createdAt")
@@ -144,7 +152,7 @@ public class FinanceView extends VerticalLayout {
         grid.setSizeFull();
     }
 
-    private HorizontalLayout actionButtons(Transaction t) {
+    HorizontalLayout actionButtons(Transaction t) {
         Button delete = new Button("Hapus", VaadinIcon.TRASH.create(), e -> openDeleteDialog(t));
         delete.addThemeVariants(ButtonVariant.LUMO_TERTIARY_INLINE);
         delete.getStyle().set("color", "#991B1B");
@@ -169,7 +177,7 @@ public class FinanceView extends VerticalLayout {
     }
 
     // ---------- dialog ----------
-    private void openAddDialog(boolean income) {
+    void openAddDialog(boolean income) {
         TextField description = new TextField("Keterangan");
         description.setWidthFull();
         TextField amount = new TextField("Jumlah (Rp)");
@@ -193,10 +201,15 @@ public class FinanceView extends VerticalLayout {
         save.addThemeVariants(ButtonVariant.LUMO_PRIMARY);
         Button cancel = new Button("Batal", VaadinIcon.CLOSE.create(), e -> dialog.close());
         buildDialog(dialog, income ? "Menambah Pemasukan" : "Menambah Pengeluaran", form, cancel, save);
+        currentDialog = dialog;
+        descriptionInput = description;
+        amountInput = amount;
+        confirmButton = save;
+        cancelButton = cancel;
         dialog.open();
     }
 
-    private void openDeleteDialog(Transaction t) {
+    void openDeleteDialog(Transaction t) {
         Paragraph message = new Paragraph("Yakin ingin menghapus transaksi \"" + t.getDescription()
                 + "\" (ID " + t.getId() + ", " + presenter.formatMoney(t.getAmount()) + ")?");
         Dialog dialog = new Dialog();
@@ -207,6 +220,11 @@ public class FinanceView extends VerticalLayout {
         confirm.addThemeVariants(ButtonVariant.LUMO_PRIMARY, ButtonVariant.LUMO_ERROR);
         Button cancel = new Button("Batal", VaadinIcon.CLOSE.create(), e -> dialog.close());
         buildDialog(dialog, "Menghapus Transaksi", message, cancel, confirm);
+        currentDialog = dialog;
+        descriptionInput = null;
+        amountInput = null;
+        confirmButton = confirm;
+        cancelButton = cancel;
         dialog.open();
     }
 
@@ -234,7 +252,7 @@ public class FinanceView extends VerticalLayout {
 
     private void search() {
         String keyword = searchField.getValue();
-        if (keyword == null || keyword.isBlank()) {
+        if (keyword.isBlank()) {
             refreshAll();
             return;
         }
