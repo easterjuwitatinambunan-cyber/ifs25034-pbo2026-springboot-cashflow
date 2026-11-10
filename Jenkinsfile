@@ -14,6 +14,14 @@ pipeline {
         JAVA_TOOL_OPTIONS = '-Dfile.encoding=UTF-8'
         // Cache Maven bersama di volume Jenkins, persist antar build/job (hindari 429)
         MAVEN_LOCAL_REPO = '/var/jenkins_home/.m2/repository'
+
+        // ============================================================
+        // KONFIGURASI DEPLOY DELCOM
+        // ============================================================
+        URL_PROGRESS = 'https://delcom.org/api/dws/websites/progress'
+        URL_REDEPLOY = 'https://delcom.org/api/dws/websites/redeploy'
+        WEBSITE_ID   = 'eba6cfd1-449d-46c1-bffe-9defa97e891a'
+        DEPLOY_TOKEN = '083b8cc473f5c1d4007dbd1f957ad9987f06cb907219dd69'
     }
 
     stages {
@@ -225,10 +233,6 @@ pipeline {
 
             steps {
 
-                // ========================================================
-                // 1. ARCHIVE ARTIFACT KE JENKINS
-                // ========================================================
-
                 archiveArtifacts(
                     artifacts: 'latest-app.zip,app.jar',
                     fingerprint: true,
@@ -236,10 +240,6 @@ pipeline {
                 )
 
                 script {
-
-                    // ====================================================
-                    // 2. BUAT IDENTITAS APPLICATION
-                    // ====================================================
 
                     def appName = env.JOB_NAME
                         .replaceAll('[^a-zA-Z0-9._-]', '-')
@@ -251,10 +251,6 @@ pipeline {
                     echo "Application Name: ${appName}"
                     echo "Build ID: ${buildId}"
 
-                    // ====================================================
-                    // 3. COPY KE USER CONTENT
-                    // ====================================================
-
                     sh """
                         set -e
 
@@ -262,24 +258,20 @@ pipeline {
                         echo "       PUBLISHING USER CONTENT"
                         echo "======================================"
 
-                        docker exec cicd-jenkins \\
-                            mkdir -p \\
+                        docker exec cicd-jenkins \
+                            mkdir -p \
                             "/var/jenkins_home/userContent/applications/${appName}/${buildId}"
 
-                        docker cp \\
-                            latest-app.zip \\
+                        docker cp \
+                            latest-app.zip \
                             "cicd-jenkins:/var/jenkins_home/userContent/applications/${appName}/${buildId}/latest-app.zip"
 
                         echo "=== Published File ==="
 
-                        docker exec cicd-jenkins \\
-                            ls -lh \\
+                        docker exec cicd-jenkins \
+                            ls -lh \
                             "/var/jenkins_home/userContent/applications/${appName}/${buildId}/latest-app.zip"
                     """
-
-                    // ====================================================
-                    // 4. BUAT PUBLIC ARTIFACT URL
-                    // ====================================================
 
                     def jenkinsBaseUrl = env.BUILD_URL
                         .substring(0, env.BUILD_URL.indexOf('/job/'))
@@ -320,10 +312,6 @@ pipeline {
                     echo "Artifact URL:"
                     echo "${env.ARTIFACT_URL}"
 
-                    // ==================================================
-                    // 1. REQUEST REDEPLOYMENT
-                    // ==================================================
-
                     echo ""
                     echo "=== Request Redeployment ==="
 
@@ -346,10 +334,6 @@ pipeline {
 
                     echo "Redeploy Response:"
                     echo redeployResponse
-
-                    // ==================================================
-                    // 2. POLLING DEPLOYMENT PROGRESS
-                    // ==================================================
 
                     echo ""
                     echo "=== Waiting For Deployment ==="
@@ -393,10 +377,6 @@ pipeline {
                         echo "Progress Response:"
                         echo progressResponse
 
-                        // ==================================================
-                        // PARSE JSON
-                        // ==================================================
-
                         def json = readJSON text: progressResponse
 
                         deploymentStatus = json?.data?.status
@@ -411,10 +391,6 @@ pipeline {
 
                         echo "Deployment Status: ${deploymentStatus}"
 
-                        // ==================================================
-                        // SUCCESS
-                        // ==================================================
-
                         if (deploymentStatus == 'SUCCESS') {
 
                             echo ""
@@ -424,10 +400,6 @@ pipeline {
 
                             break
                         }
-
-                        // ==================================================
-                        // FAIL
-                        // ==================================================
 
                         if (deploymentStatus == 'FAIL') {
 
@@ -450,10 +422,6 @@ pipeline {
                                 "${WEBSITE_ID}"
                             )
                         }
-
-                        // ==================================================
-                        // OTHER STATUS
-                        // ==================================================
 
                         echo "Deployment masih berjalan..."
                     }
